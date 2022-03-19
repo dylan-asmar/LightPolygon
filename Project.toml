@@ -1,0 +1,9 @@
+name = "LightPolygon"
+uuid = "ba534cae-0005-4078-9977-7f5be9081cf2"
+authors = ["Dylan Asmar <asmar@stanford.edu>"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
