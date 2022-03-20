@@ -121,22 +121,32 @@ function in_polygon(p::Tuple{Real,Real}, poly::polygon)
     return horiz_line && vert_line
 end
 
-# TODO: Extend this function to return the proper values if on edges vs just true or false.
 """
 Determine if point is in a polygon with holes. Must be on the border or inside the border
     and not inside a hole. If a point is on the border of a hole, it is still inside counted
     as inside. 
 """
 function in_polygon(p::Tuple{Real,Real}, poly::polygon_w_holes)
-    if in_polygon(p, poly.border) == 0
-        return false
+    border = in_polygon(p, poly.border)
+    if border == 0
+        return 0 # Not inside the border
     end
+    
+    on_hole_edge = false
     for ph in poly.holes
-        if in_polygon(p, ph) == 1
-            return false
+        hole = in_polygon(p, ph)
+        if hole == 1
+            return 0 # Inside a hole
+        end
+        if hole == -1
+            on_hole_edge = true # On the border of a hole polygon, but still inside the border
         end
     end
-    return true
+
+    if (border == -1) || on_hole_edge
+        return -1 # On the edge of border or hole
+    end
+    return 1 # If we made it here, we are inside the polygon and outside holes
 end
 
 """
@@ -264,15 +274,11 @@ function visibility_polygon(pt::Tuple{Real,Real}, edges::Vector{edge}, border::p
             deleteat!(active_edge_un, findall(x -> x == current_vertex[4], active_edge_un))
         end
 
-        handle_event_point(current_vertex, active_edge, PV, SL, SLr, edges_polar, edges′, active_edge_un, border, pt)
+        handle_event_point(current_vertex, active_edge, PV, SL, SLr, edges_polar, edges′, active_edge_un)
         if length(PV) >= 2
             while length(PV) >= 2 && isapprox(PV[1][1], PV[2][1]) && isapprox(PV[1][2], PV[2][2])
                 deleteat!(PV, 1)
             end
-            # If reinstating, need to change the call to colinear
-            # while length(PV) >=3 && check_colinear([pv[3:4] for pv in PV[1:3]])
-            #     deleteat!(PV, 2)
-            # end
         end
         if length(PV) >= 4
             angles = [PV[ii][2] for ii in length(PV):-1:2]
@@ -285,7 +291,7 @@ function visibility_polygon(pt::Tuple{Real,Real}, edges::Vector{edge}, border::p
             end
         end
     end
-    PV_tup = [Tuple(pv[3:4]) .+ pt for pv in PV]
+    PV_tup = [Tuple(pv[3:4]) .+ pt for pv ∈ reverse(PV)]
     return polygon(PV_tup)
 end
 
@@ -293,14 +299,12 @@ function handle_event_point(current_vertex::Vector{T}, active_edge::Vector{T},
     PV::Vector{Vector{Real}},
     SL::Vector{Real}, SLr::Vector{Real},
     edges_polar::Vector{edge_p}, edges::Vector{edge},
-    active_edge_un::Vector{T},
-    border::polygon, pt::Tuple{Real,Real}) where {T}
+    active_edge_un::Vector{T}) where {T}
 
     # If current vertex is an end vertex and current vertex is part of the active edge
     if current_vertex[3] == 1 && current_vertex[4] == active_edge[1]
         second_check = true
         pushfirst!(PV, current_vertex[[1, 2, 5, 6]])
-
         while !isempty(SL)
             angs, Rs = Vector{Real}(), Vector{Real}()
             intx_cs = Vector{Tuple{Real,Real,Real}}()
@@ -318,7 +322,6 @@ function handle_event_point(current_vertex::Vector{T}, active_edge::Vector{T},
                     push!(remove_idxs, ii)
                 end
             end
-
             deleteat!(SL, remove_idxs)
             deleteat!(SLr, remove_idxs)
 
@@ -332,13 +335,10 @@ function handle_event_point(current_vertex::Vector{T}, active_edge::Vector{T},
                 else
                     idx = angs_idx[1]
                 end
-
                 second_check = false
                 intx_edge = popat!(SL, idx)
-                intx_r = popat!(SLr, idx)
-
+                popat!(SLr, idx)
                 intx_c, intx_p = intx_cs[idx], intx_ps[idx]
-
                 pushfirst!(PV, [collect(intx_p); collect(intx_c[1:2])])
                 active_edge[1] = intx_edge
                 push!(active_edge_un, active_edge[1])
@@ -350,7 +350,6 @@ function handle_event_point(current_vertex::Vector{T}, active_edge::Vector{T},
             intx_c, intx_p = intersection_pt(edges[Int(active_edge_un[end])], current_vertex[5:6])
             if ((intx_p[1] > current_vertex[1] || isapprox(intx_p[1], current_vertex[1]))
                 && intx_c[3] >= 0 && intx_c[3] <= 1)
-
                 pushfirst!(PV, [collect(intx_p); collect(intx_c[1:2])])
                 active_edge[1] = active_edge_un[end]
             end
@@ -361,9 +360,6 @@ function handle_event_point(current_vertex::Vector{T}, active_edge::Vector{T},
     if current_vertex[3] == 0
         intx_c, intx_p = intersection_pt(edges[Int(active_edge[1])], current_vertex[5:6])
         if (intx_p[1] < current_vertex[1] - 10e-10) && !isapprox(intx_p[1], 0)
-            # idx = searchsortedfirst(SLr, current_vertex[1])            
-            # insert!(SL, idx, current_vertex[4])
-            # insert!(SLr, idx, current_vertex[1])
             push!(SL, current_vertex[4])
             push!(SLr, current_vertex[1])
         else
@@ -373,8 +369,6 @@ function handle_event_point(current_vertex::Vector{T}, active_edge::Vector{T},
             pushfirst!(PV, current_vertex[[1, 2, 5, 6]])
             active_edge[1] = current_vertex[4]
             push!(active_edge_un, active_edge[1])
-            #else
-
         end
     end
 end
@@ -406,7 +400,6 @@ function check_colinear(pv_pts::Vector{Vector{T}}) where {T}
     x1, y1 = pv_pts[1][1], pv_pts[1][2]
     x2, y2 = pv_pts[2][1], pv_pts[2][2]
     x3, y3 = pv_pts[3][1], pv_pts[3][2]
-
     a = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)
     return abs(a) < 10e-10
 end
@@ -415,8 +408,8 @@ end
 Helper function to convert cartesion to polar
 """
 function cart2pol(x::Real, y::Real)
-    r = round(norm([x, y]), digits=5)
-    θ = round(mod(atan(y, x), 2π), digits=5)
+    r = round(norm([x, y]), digits=9)
+    θ = round(mod(atan(y, x), 2π), digits=9)
     return (r, θ)
 end
 
@@ -424,8 +417,8 @@ end
 Helper function to conver polar to cartesion
 """
 function pol2cart(r::Real, θ::Real)
-    x = round(r * cos(θ), digits=5)
-    y = round(r * sin(θ), digits=5)
+    x = round(r * cos(θ), digits=9)
+    y = round(r * sin(θ), digits=9)
     return (x, y)
 end
 

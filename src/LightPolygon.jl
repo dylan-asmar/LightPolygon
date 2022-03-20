@@ -20,7 +20,6 @@ export
     area,
     visibility_polygon
 
-
 include("poly_basics.jl")
 include("poly_functions.jl")
 

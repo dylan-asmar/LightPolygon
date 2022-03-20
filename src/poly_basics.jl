@@ -18,7 +18,7 @@ end
 
 """
 Edge of polygon.
-    s - sart node
+    s - start node
     e - end node
 """
 struct edge
@@ -134,7 +134,7 @@ end
 """
 Create regular polygon
 """
-function regular_poly(center::Tuple{Real,Real}, num_sides::Int, radius::Real, orientation::Real=π / 2)
+function regular_poly(center::Tuple{Real,Real}, num_sides::Int, radius::Real, orientation::Real=π/2)
     num_sides > 2 || error("Regular polygon does not exist for $num_sides sides")
     cart_pts = Vector{Tuple{Real,Real}}(undef, num_sides)
     ϕ = 2π / num_sides
