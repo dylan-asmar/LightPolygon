@@ -151,6 +151,11 @@ end
 
 """
 Calculate the visibility polygon from a point inside a polygon
+
+Largely based on Erdem, Ugur Murat and Stan Sclaroff. “Automated camera layout to satisfy 
+task-specific and floor plan-specific coverage requirements.” Comput. Vis. Image Underst. 103 (2006): 156-169.
+
+Modified the original algorithm to work with off nominal cases.
 """
 function visibility_polygon(pt::Tuple{Real,Real}, poly::polygon)
     return visibility_polygon(pt, poly.edges, poly)
